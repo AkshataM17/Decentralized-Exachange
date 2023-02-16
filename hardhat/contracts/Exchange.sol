@@ -8,7 +8,7 @@ contract  Exchange is ERC20 {
     address public cryptoDevTokenAddress;
     constructor(address _cryptoDevtoken) ERC20("CryptoDev LP tokens", "CDLP"){
         require(_cryptoDevtoken != address(0), "You should not enter null address");
-        cryptoDevTokenAddress = _crytoDevtoken;
+        cryptoDevTokenAddress = _cryptoDevtoken;
     }
 
     //to get eth reserve we use - address(this).balance;
@@ -20,7 +20,7 @@ contract  Exchange is ERC20 {
 
     function addLiquidity(uint _amount) public payable returns (uint256){
         uint liquidity;
-        uint156 ethBalance = address(this).balance;
+        uint256 ethBalance = address(this).balance;
         uint256 cryptoDevsTokenReserve = getReserve();
         ERC20 cryptoDevToken = ERC20(cryptoDevTokenAddress);
 
@@ -36,7 +36,7 @@ contract  Exchange is ERC20 {
             //to calculate the ratio
             uint256 ethReserve = ethBalance - msg.value;
             uint256 cryptoDevTokenAmount = (msg.value * cryptoDevsTokenReserve)/(ethReserve);
-            require(_amount > cryptoDevsTokenAmount, "You do not have sufficient funds to provide liquidity");
+            require(_amount > cryptoDevTokenAmount, "You do not have sufficient funds to provide liquidity");
             cryptoDevToken.transferFrom(msg.sender, address(this), cryptoDevTokenAmount);
             
             liquidity = (totalSupply()* msg.value)/ethReserve;
@@ -75,6 +75,38 @@ contract  Exchange is ERC20 {
     return numerator / denominator;
 }
 
-//swap functions
+ //swap functions
+ function ethToCryptoDevToken(uint _minTokens) public payable {
+    uint256 tokenReserve = getReserve();
+    uint256 tokenBought = getAmountOfTokens(
+        msg.value,
+        address(this).balance - msg.value,
+        tokenReserve
+    );
+
+    require(tokenBought > _minTokens, "Insufficient amount");
+    ERC20(cryptoDevTokenAddress).transfer(msg.sender, tokenBought);
+ }
+
+ function cryptoDevTokenToEth(uint _tokenSold, uint _minEth)  public {
+    uint256 tokenReserve = getReserve();
+    uint256 ethBought = getAmountOfTokens(
+        _tokenSold,
+        tokenReserve,
+        address(this).balance
+    );
+    require(ethBought > _minEth, "insufficient output amount");
+
+    //transfer tokens from user address to the contract
+    ERC20(cryptoDevTokenAddress).transferFrom(
+        msg.sender,
+        address(this),
+        _tokenSold
+    );
+
+    //transfer eth to the address
+    payable(msg.sender).transfer(ethBought);
+    
+ }
 
 }
